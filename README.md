@@ -17,4 +17,4 @@ go build .
 
 [Peter Norvig's original essay](http://norvig.com/sudoku.html)
 
-[Go Programming Language][http://golang.org]
+[Go Programming Language](http://golang.org)
