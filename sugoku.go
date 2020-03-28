@@ -170,7 +170,7 @@ func search(puzzle map[string]string) (map[string]string, bool) {
 
 	for _, s := range squares {
 		size := len(puzzle[s])
-		if size > 1 && size <= min_size {
+		if size > 1 && size < min_size {
 			is_solved = false
 			min_square = s
 			min_size = size
