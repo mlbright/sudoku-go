@@ -89,8 +89,8 @@ func parse_grid(grid string) (map[string]string, bool) {
 func grid_values(grid string) map[string]string {
 	puzzle := make(map[string]string)
 	i := 0
+	valid := digits + "."
 	for _, c := range strings.Split(grid, "") {
-		valid := digits + "."
 		if strings.Contains(valid, c) {
 			puzzle[squares[i]] = c
 			i++
@@ -118,12 +118,13 @@ func eliminate(puzzle map[string]string, s string, d string) bool {
 	if !strings.Contains(puzzle[s], d) {
 		return true // Already eliminated
 	}
-
 	puzzle[s] = strings.Replace(puzzle[s], d, "", -1)
 	// (1) If a square s is reduced to one value d2, then eliminate d2 from the peers.
 	if len(puzzle[s]) == 0 {
 		return false // Contradiction, removed last value
-	} else if len(puzzle[s]) == 1 {
+	}
+
+	if len(puzzle[s]) == 1 {
 		d2 := puzzle[s]
 		for _, s2 := range peers[s] {
 			if !eliminate(puzzle, s2, d2) {
