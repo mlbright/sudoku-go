@@ -164,34 +164,38 @@ func solve(grid string) (map[string]string, bool) {
 }
 
 func search(puzzle map[string]string) (map[string]string, bool) {
-	for _, s := range squares {
-		if len(puzzle[s]) != 1 {
-			min_square := "A1"
-			min_size := 9
-			for _, s := range squares {
-				size := len(puzzle[s])
-				if size > 1 && size <= min_size {
-					min_square = s
-					min_size = size
-				}
-			}
-			for _, d := range strings.Split(puzzle[min_square], "") {
-				puzzle_copy := make(map[string]string)
-				for k, v := range puzzle {
-					puzzle_copy[k] = v
-				}
+	min_square := "A1"
+	min_size := 9
+	is_solved := true
 
-				if assign(puzzle_copy, min_square, d) {
-					result, ok := search(puzzle_copy)
-					if ok {
-						return result, true
-					}
-				}
-			}
-			return puzzle, false
+	for _, s := range squares {
+		size := len(puzzle[s])
+		if size > 1 && size <= min_size {
+			is_solved = false
+			min_square = s
+			min_size = size
 		}
 	}
-	return puzzle, true
+
+	if is_solved {
+		return puzzle, true
+	}
+
+	for _, d := range strings.Split(puzzle[min_square], "") {
+		puzzle_copy := make(map[string]string)
+		for k, v := range puzzle {
+			puzzle_copy[k] = v
+		}
+
+		if assign(puzzle_copy, min_square, d) {
+			result, ok := search(puzzle_copy)
+			if ok {
+				return result, true
+			}
+		}
+	}
+
+	return puzzle, false
 }
 
 func max(values []int64) int64 {
