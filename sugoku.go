@@ -8,21 +8,23 @@ import (
 	"time"
 )
 
-type unit []string
+type iunit []string
+type unit []int
 type unitgroup []unit
 type peerlist []string
 
 var (
-	rows     string
-	cols     string
-	digits   string
-	squares  []string
-	unitlist []unit
-	units    map[string]unitgroup
-	peers    map[string]peerlist
+	rows      string
+	cols      string
+	digits    string
+	squares   []string
+	unitlist  []unit
+	iunitlist []iunit
+	units     map[string]unitgroup
+	peers     map[string]peerlist
 )
 
-const puzzle_n int = 17
+const puzzleN int = 17
 
 func cross(x string, y string) []string {
 	result := make([]string, 0)
@@ -341,21 +343,25 @@ func main() {
 	digits = "123456789"
 	cols = digits
 	squares = cross(rows, cols)
+	squaresdict := make(map[string]int)
+	for i, sq := range squares {
+		squaresdict[sq] = i
+	}
 
-	unitlist = make([]unit, 0)
+	iunitlist = make([]iunit, 0)
 
 	for _, c := range cols {
-		unitlist = append(unitlist, cross(rows, string(c)))
+		iunitlist = append(iunitlist, cross(rows, string(c)))
 	}
 	for _, r := range rows {
-		unitlist = append(unitlist, cross(string(r), cols))
+		iunitlist = append(iunitlist, cross(string(r), cols))
 	}
 	rs := []string{"ABC", "DEF", "GHI"}
 	cs := []string{"123", "456", "789"}
 
 	for _, r := range rs {
 		for _, c := range cs {
-			unitlist = append(unitlist, cross(r, c))
+			iunitlist = append(iunitlist, cross(r, c))
 		}
 	}
 
@@ -393,11 +399,6 @@ func main() {
 		peers[s] = peer_list
 	}
 
-	/*
-	   grid1 := "003020600900305001001806400008102900700000008006708200002609500800203009005010300"
-	   grid2 := "4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......"
-	   hard1 := ".....6....59.....82....8....45........3........6..3.54...325..6.................."
-	*/
 	test()
 	solve_all(from_file("easy50.txt"), "easy")
 	solve_all(from_file("top95.txt"), "hard")
