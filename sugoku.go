@@ -11,17 +11,19 @@ import (
 type iunit []string
 type unit []int
 type unitgroup []unit
-type peerlist []string
+type peerlist []int
 
 var (
-	rows      string
-	cols      string
-	digits    string
-	squares   []string
-	unitlist  []unit
-	iunitlist []iunit
-	units     map[string]unitgroup
-	peers     map[string]peerlist
+	rows        string
+	cols        string
+	digits      string
+	squares     []string
+	unitlist    []unit
+	iunitlist   []iunit
+	units       []unitgroup
+	peers       []peerlist
+	blankPuzzle []string
+	valid       string
 )
 
 const puzzleN int = 17
@@ -42,42 +44,39 @@ func cross(x string, y string) []string {
 func test() {
 
 	if len(squares) != 81 {
-		panic("wtf, the number of squares is not 81")
+		panic("the number of squares is not 81")
+	}
+
+	if len(iunitlist) != 27 {
+		panic("the number of iunits is not 27")
 	}
 
 	if len(unitlist) != 27 {
-		panic("wtf, the number of units is not 27")
+		panic("the number of units is not 27")
 	}
 
-	for _, s := range squares {
+	for s := range squares {
 		if len(units[s]) != 3 {
 			panic("bad unit")
 		}
 	}
 
-	for _, s := range squares {
+	for s := range squares {
 		if len(peers[s]) != 20 {
 			panic("bad peer list")
 		}
 	}
-
-	// fmt.Println(peers["C2"])
-
-	/* TODO: need assertions for units["C2"] and peers["C2"] */
 
 	fmt.Println("All tests pass.")
 }
 
 // Parse a grid
 
-func parse_grid(grid string) (map[string]string, bool) {
-	puzzle := grid_values(grid)
-
+func parseGrid(grid string) ([]string, bool) {
+	puzzle := gridValues(grid)
 	// To start, every square can be any digit; then assign values from the grid.
-	solution := make(map[string]string)
-	for _, s := range squares {
-		solution[s] = digits
-	}
+	solution := make([]string, len(puzzle))
+	copy(solution, blankPuzzle)
 	for s, d := range puzzle {
 		if strings.Contains(digits, d) {
 			if !assign(solution, s, d) {
@@ -88,13 +87,12 @@ func parse_grid(grid string) (map[string]string, bool) {
 	return solution, true
 }
 
-func grid_values(grid string) map[string]string {
-	puzzle := make(map[string]string)
+func gridValues(grid string) []string {
+	puzzle := make([]string, 81)
 	i := 0
-	valid := digits + "."
 	for _, c := range strings.Split(grid, "") {
 		if strings.Contains(valid, c) {
-			puzzle[squares[i]] = c
+			puzzle[i] = c
 			i++
 		}
 	}
@@ -106,30 +104,32 @@ func grid_values(grid string) map[string]string {
 
 // Constraint Propagation
 
-func assign(puzzle map[string]string, s string, d string) bool {
-	other_values := strings.Replace(puzzle[s], d, "", -1)
-	for _, d2 := range strings.Split(other_values, "") {
-		if !eliminate(puzzle, s, d2) {
+func assign(puzzle []string, s int, d string) bool {
+	otherValues := strings.Replace(puzzle[s], d, "", -1)
+	for _, otherValue := range strings.Split(otherValues, "") {
+		if !eliminate(puzzle, s, otherValue) {
 			return false
 		}
 	}
 	return true
 }
 
-func eliminate(puzzle map[string]string, s string, d string) bool {
-	if !strings.Contains(puzzle[s], d) {
+func eliminate(puzzle []string, s int, valueToEliminate string) bool {
+	if !strings.Contains(puzzle[s], valueToEliminate) {
 		return true // Already eliminated
 	}
-	puzzle[s] = strings.Replace(puzzle[s], d, "", -1)
-	// (1) If a square s is reduced to one value d2, then eliminate d2 from the peers.
+
+	puzzle[s] = strings.Replace(puzzle[s], valueToEliminate, "", -1)
+
 	if len(puzzle[s]) == 0 {
 		return false // Contradiction, removed last value
 	}
 
+	// (1) If a square s is reduced to one value, then eliminate it from the peers.
 	if len(puzzle[s]) == 1 {
 		d2 := puzzle[s]
-		for _, s2 := range peers[s] {
-			if !eliminate(puzzle, s2, d2) {
+		for _, peer := range peers[s] {
+			if !eliminate(puzzle, peer, d2) {
 				return false
 			}
 		}
@@ -137,17 +137,20 @@ func eliminate(puzzle map[string]string, s string, d string) bool {
 
 	// (2) If a unit u is reduced to only one place for a value d, then put it there.
 	for _, u := range units[s] {
-		dplaces := make([]string, 0)
+		dplaces := make([]int, 0)
 		for _, sq := range u {
-			if strings.Contains(puzzle[sq], d) {
+			if strings.Contains(puzzle[sq], valueToEliminate) {
 				dplaces = append(dplaces, sq)
 			}
 		}
-		num_spots := len(dplaces)
-		if num_spots == 0 {
+
+		numSpots := len(dplaces)
+		if numSpots == 0 {
 			return false // Contradiction: no place for this value
-		} else if num_spots == 1 {
-			if !assign(puzzle, dplaces[0], d) {
+		}
+
+		if numSpots == 1 {
+			if !assign(puzzle, dplaces[0], valueToEliminate) {
 				return false
 			}
 		}
@@ -157,38 +160,36 @@ func eliminate(puzzle map[string]string, s string, d string) bool {
 
 // Search
 
-func solve(grid string) (map[string]string, bool) {
-	puzzle, ok := parse_grid(grid)
+func solve(grid string) ([]string, bool) {
+	puzzle, ok := parseGrid(grid)
 	if ok {
 		return search(puzzle)
 	}
 	return puzzle, ok
 }
 
-func search(puzzle map[string]string) (map[string]string, bool) {
-	min_square := ""
-	min_size := 10
+func search(puzzle []string) ([]string, bool) {
+	minSquare := 82
+	minSize := 10
 
-	for _, s := range squares {
+	for s := range squares {
 		size := len(puzzle[s])
-		if size > 1 && size < min_size {
-			min_square = s
-			min_size = size
+		if size > 1 && size < minSize {
+			minSquare = s
+			minSize = size
 		}
 	}
 
-	if min_square == "" {
+	if minSquare == 82 {
 		return puzzle, true
 	}
 
-	for _, d := range strings.Split(puzzle[min_square], "") {
-		puzzle_copy := make(map[string]string)
-		for k, v := range puzzle {
-			puzzle_copy[k] = v
-		}
+	for _, d := range strings.Split(puzzle[minSquare], "") {
+		puzzleCopy := make([]string, 81)
+		copy(puzzleCopy, puzzle)
 
-		if assign(puzzle_copy, min_square, d) {
-			result, ok := search(puzzle_copy)
+		if assign(puzzleCopy, minSquare, d) {
+			result, ok := search(puzzleCopy)
 			if ok {
 				return result, true
 			}
@@ -230,13 +231,13 @@ func bool2int(booleans []bool) []int64 {
 	return ints
 }
 
-func time_solve(grid string) (int64, bool) {
+func timeSolve(grid string) (int64, bool) {
 	start := time.Now()
-	nanos_start := start.UnixNano()
+	nanosStart := start.UnixNano()
 	puzzle, _ := solve(grid)
 	end := time.Now()
-	nanos_end := end.UnixNano()
-	duration := nanos_end - nanos_start
+	nanosEnd := end.UnixNano()
+	duration := nanosEnd - nanosStart
 	/*
 	   fmt.Println(grid)
 	   var solved_ []string
@@ -248,7 +249,7 @@ func time_solve(grid string) (int64, bool) {
 	return duration, solved(puzzle)
 }
 
-func from_file(filename string) []string {
+func fromFile(filename string) []string {
 	dat, _ := ioutil.ReadFile(filename)
 	grids := strings.Split(string(dat), "\n")
 	return grids[:len(grids)-1]
@@ -258,12 +259,12 @@ func nanoconv(nanos int64) float64 {
 	return float64(nanos) / 1000000000.0
 }
 
-func solve_all(grids []string, name string) {
+func solveAll(grids []string, name string) {
 	times := make([]int64, 0)
 	results := make([]bool, 0)
 
 	for _, grid := range grids {
-		t, result := time_solve(grid)
+		t, result := timeSolve(grid)
 		times = append(times, t)
 		results = append(results, result)
 	}
@@ -275,9 +276,9 @@ func solve_all(grids []string, name string) {
 	}
 }
 
-func unit_solved(puzzle map[string]string, unit_ unit) bool {
+func unitSolved(puzzle []string, u unit) bool {
 	set := make(map[string]bool)
-	for _, s := range unit_ {
+	for _, s := range u {
 		set[puzzle[s]] = true
 	}
 	for _, d := range strings.Split(digits, "") {
@@ -288,32 +289,31 @@ func unit_solved(puzzle map[string]string, unit_ unit) bool {
 	return true
 }
 
-func solved(puzzle map[string]string) bool {
-	for _, unit_ := range unitlist {
-		if !unit_solved(puzzle, unit_) {
+func solved(puzzle []string) bool {
+	for _, u := range unitlist {
+		if !unitSolved(puzzle, u) {
 			return false
 		}
 	}
 	return true
 }
 
-func random_puzzle() string {
-	puzzle := make(map[string]string)
-	for _, s := range squares {
-		puzzle[s] = digits
-	}
+func randomPuzzle() string {
+	puzzle := make([]string, 81)
+	copy(puzzle, blankPuzzle)
 	shuffled := make([]string, len(squares))
 	perm := rand.Perm(len(squares))
 	for i, v := range perm {
 		shuffled[v] = squares[i]
 	}
-	for _, s := range shuffled {
+	for s := range shuffled {
 		elements := strings.Split(puzzle[s], "")
+		fmt.Println(len(elements))
 		if !assign(puzzle, s, elements[rand.Intn(len(elements))]) {
 			break
 		}
 		ds := make([]string, 0)
-		for _, sq := range squares {
+		for sq := range squares {
 			if len(puzzle[sq]) == 1 {
 				ds = append(ds, puzzle[sq])
 			}
@@ -322,9 +322,9 @@ func random_puzzle() string {
 		for _, sq := range ds {
 			set[sq] = true
 		}
-		if len(ds) >= puzzle_n && len(set) >= 8 {
+		if len(ds) >= puzzleN && len(set) >= 8 {
 			out := make([]string, 0)
-			for _, sq := range squares {
+			for sq := range squares {
 				if len(puzzle[sq]) == 1 {
 					out = append(out, puzzle[sq])
 				} else {
@@ -335,17 +335,22 @@ func random_puzzle() string {
 			return puzzle
 		}
 	}
-	return random_puzzle()
+	return randomPuzzle()
 }
 
 func main() {
 	rows = "ABCDEFGHI"
 	digits = "123456789"
+	valid = digits + "."
 	cols = digits
 	squares = cross(rows, cols)
-	squaresdict := make(map[string]int)
+	squaresDict := make(map[string]int)
 	for i, sq := range squares {
-		squaresdict[sq] = i
+		squaresDict[sq] = i
+	}
+
+	for range squares {
+		blankPuzzle = append(blankPuzzle, digits)
 	}
 
 	iunitlist = make([]iunit, 0)
@@ -365,8 +370,17 @@ func main() {
 		}
 	}
 
-	units = make(map[string]unitgroup)
-	for _, s := range squares {
+	unitlist = make([]unit, 0)
+	for _, u := range iunitlist {
+		squareList := make(unit, 0)
+		for _, sq := range u {
+			squareList = append(squareList, squaresDict[sq])
+		}
+		unitlist = append(unitlist, squareList)
+	}
+
+	units = make([]unitgroup, 0)
+	for s := range squares {
 		group := make(unitgroup, 0)
 		for _, unit := range unitlist {
 			for _, square := range unit {
@@ -376,36 +390,34 @@ func main() {
 				}
 			}
 		}
-		units[s] = group
+		units = append(units, group)
 	}
 
-	peers = make(map[string]peerlist)
+	peers = make([]peerlist, 81)
 
-	for _, s := range squares {
-		peer_set := make(map[string]bool)
+	for s := range squares {
+		peerSet := make(map[int]bool)
 		for _, unit := range units[s] {
 			for _, square := range unit {
 				if square != s {
-					peer_set[square] = true
+					peerSet[square] = true
 				}
 			}
 		}
-		peer_list := make(peerlist, len(peer_set))
-		i := 0
-		for k, _ := range peer_set {
-			peer_list[i] = k
-			i++
+		peerList := make([]int, 0)
+		for k := range peerSet {
+			peerList = append(peerList, k)
 		}
-		peers[s] = peer_list
+		peers[s] = peerList
 	}
 
 	test()
-	solve_all(from_file("easy50.txt"), "easy")
-	solve_all(from_file("top95.txt"), "hard")
-	solve_all(from_file("hardest.txt"), "hardest")
-	random_puzzles := make([]string, 100)
+	solveAll(fromFile("easy50.txt"), "easy")
+	solveAll(fromFile("top95.txt"), "hard")
+	solveAll(fromFile("hardest.txt"), "hardest")
+	/*randomPuzzles := make([]string, 99)
 	for j := 0; j < 100; j++ {
-		random_puzzles[j] = random_puzzle()
+		randomPuzzles[j] = randomPuzzle()
 	}
-	solve_all(random_puzzles, "random")
+	solveAll(randomPuzzles, "random")*/
 }
