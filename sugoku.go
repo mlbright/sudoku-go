@@ -308,7 +308,6 @@ func randomPuzzle() string {
 	}
 	for s := range shuffled {
 		elements := strings.Split(puzzle[s], "")
-		fmt.Println(len(elements))
 		if !assign(puzzle, s, elements[rand.Intn(len(elements))]) {
 			break
 		}
@@ -415,9 +414,9 @@ func main() {
 	solveAll(fromFile("easy50.txt"), "easy")
 	solveAll(fromFile("top95.txt"), "hard")
 	solveAll(fromFile("hardest.txt"), "hardest")
-	/*randomPuzzles := make([]string, 99)
-	for j := 0; j < 100; j++ {
+	randomPuzzles := make([]string, 99)
+	for j := 0; j < 99; j++ {
 		randomPuzzles[j] = randomPuzzle()
 	}
-	solveAll(randomPuzzles, "random")*/
+	solveAll(randomPuzzles, "random")
 }
