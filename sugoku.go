@@ -232,20 +232,10 @@ func bool2int(booleans []bool) []int64 {
 }
 
 func timeSolve(grid string) (int64, bool) {
-	start := time.Now()
-	nanosStart := start.UnixNano()
+	start := time.Now().UnixNano()
 	puzzle, _ := solve(grid)
-	end := time.Now()
-	nanosEnd := end.UnixNano()
-	duration := nanosEnd - nanosStart
-	/*
-	   fmt.Println(grid)
-	   var solved_ []string
-	   for _,sq := range squares {
-	       solved_ = append(solved_,puzzle[sq])
-	   }
-	   fmt.Println(strings.Join(solved_,""))
-	*/
+	end := time.Now().UnixNano()
+	duration := end - start
 	return duration, solved(puzzle)
 }
 
