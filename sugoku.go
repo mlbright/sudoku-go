@@ -401,12 +401,15 @@ func main() {
 	}
 
 	test()
-	solveAll(fromFile("easy50.txt"), "easy")
-	solveAll(fromFile("top95.txt"), "hard")
-	solveAll(fromFile("hardest.txt"), "hardest")
 	randomPuzzles := make([]string, 99)
 	for j := 0; j < 99; j++ {
 		randomPuzzles[j] = randomPuzzle()
 	}
 	solveAll(randomPuzzles, "random")
+	solveAll(fromFile("puzzles/easy50.txt"), "easy")
+	solveAll(fromFile("puzzles/top95.txt"), "hard")
+	solveAll(fromFile("puzzles/hardest.txt"), "hardest")
+	solveAll(fromFile("puzzles/hardest20.txt"), "hardest20")
+	solveAll(fromFile("puzzles/hardest20x50.txt"), "hardest20x50")
+	solveAll(fromFile("puzzles/topn87.txt"), "topn87")
 }
