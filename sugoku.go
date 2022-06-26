@@ -119,6 +119,7 @@ func eliminate(puzzle []string, s int, valueToEliminate string) bool {
 		return true // Already eliminated
 	}
 
+	// (A)
 	puzzle[s] = strings.Replace(puzzle[s], valueToEliminate, "", -1)
 
 	if len(puzzle[s]) == 0 {
@@ -135,26 +136,33 @@ func eliminate(puzzle []string, s int, valueToEliminate string) bool {
 		}
 	}
 
-	// (2) If a unit u is reduced to only one place for a value d, then put it there.
+	// (2) As a result of (A), if another unit u is reduced to only one place for valueToEliminate, then assign it there.
 	for _, u := range units[s] {
-		dplaces := make([]int, 0)
+		lastRemainingSquareForValueToEliminate := 82
+		numberOfCandidates := 0
+
 		for _, sq := range u {
 			if strings.Contains(puzzle[sq], valueToEliminate) {
-				dplaces = append(dplaces, sq)
+				lastRemainingSquareForValueToEliminate = sq
+				numberOfCandidates += 1
+			}
+
+			if numberOfCandidates > 1 {
+				break
 			}
 		}
 
-		numSpots := len(dplaces)
-		if numSpots == 0 {
+		if numberOfCandidates == 0 {
 			return false // Contradiction: no place for this value
 		}
 
-		if numSpots == 1 {
-			if !assign(puzzle, dplaces[0], valueToEliminate) {
+		if numberOfCandidates == 1 {
+			if !assign(puzzle, lastRemainingSquareForValueToEliminate, valueToEliminate) {
 				return false
 			}
 		}
 	}
+
 	return true
 }
 
