@@ -12,6 +12,7 @@ const (
 	N      int = 17
 )
 
+type puzzle []string
 type iunit []string
 type unit []int
 type unitgroup []unit
@@ -37,24 +38,24 @@ func cross(x string, y string) []string {
 	return result
 }
 
-func (p *sudoku) Test() {
+func (s *sudoku) Test() {
 
-	if len(p.squares) != 81 {
+	if len(s.squares) != 81 {
 		panic("the number of squares is not 81")
 	}
 
-	if len(p.unitlist) != 27 {
+	if len(s.unitlist) != 27 {
 		panic("the number of units is not 27")
 	}
 
-	for s := range p.squares {
-		if len(p.units[s]) != 3 {
+	for sq := range s.squares {
+		if len(s.units[sq]) != 3 {
 			panic("bad unit")
 		}
 	}
 
-	for s := range p.squares {
-		if len(p.peers[s]) != 20 {
+	for sq := range s.squares {
+		if len(s.peers[sq]) != 20 {
 			panic("bad peer list")
 		}
 	}
@@ -62,12 +63,12 @@ func (p *sudoku) Test() {
 	fmt.Println("All tests pass.")
 }
 
-func (p *sudoku) parseGrid(grid string) ([]string, bool) {
+func (s *sudoku) parseGrid(grid string) (puzzle, bool) {
 	// To start, every square can be any digit; then assign values from the grid.
-	solution := p.blankPuzzle()
-	for s, d := range gridValues(grid) {
+	solution := s.blankPuzzle()
+	for sq, d := range gridValues(grid) {
 		if strings.Contains(digits, d) {
-			if !p.assign(solution, s, d) {
+			if !s.assign(solution, sq, d) {
 				return solution, false
 			}
 		}
@@ -75,7 +76,7 @@ func (p *sudoku) parseGrid(grid string) ([]string, bool) {
 	return solution, true
 }
 
-func gridValues(grid string) []string {
+func gridValues(grid string) puzzle {
 	puzzle := make([]string, 81)
 	i := 0
 	for _, c := range strings.Split(grid, "") {
@@ -92,33 +93,33 @@ func gridValues(grid string) []string {
 
 // Constraint Propagation
 
-func (p *sudoku) assign(puzzle []string, s int, d string) bool {
-	otherValues := strings.Replace(puzzle[s], d, "", -1)
+func (s *sudoku) assign(puzzle []string, sq int, d string) bool {
+	otherValues := strings.Replace(puzzle[sq], d, "", -1)
 	for _, otherValue := range strings.Split(otherValues, "") {
-		if !p.eliminate(puzzle, s, otherValue) {
+		if !s.eliminate(puzzle, sq, otherValue) {
 			return false
 		}
 	}
 	return true
 }
 
-func (p *sudoku) eliminate(puzzle []string, s int, valueToEliminate string) bool {
-	if !strings.Contains(puzzle[s], valueToEliminate) {
+func (s *sudoku) eliminate(puzzle []string, sq int, valueToEliminate string) bool {
+	if !strings.Contains(puzzle[sq], valueToEliminate) {
 		return true // Already eliminated
 	}
 
 	// (A)
-	puzzle[s] = strings.Replace(puzzle[s], valueToEliminate, "", -1)
+	puzzle[sq] = strings.Replace(puzzle[sq], valueToEliminate, "", -1)
 
-	if len(puzzle[s]) == 0 {
+	if len(puzzle[sq]) == 0 {
 		return false // Contradiction, removed last value
 	}
 
 	// (1) If a square s is reduced to one value, then eliminate it from the peers.
-	if len(puzzle[s]) == 1 {
-		lastRemainingValue := puzzle[s]
-		for _, peer := range p.peers[s] {
-			if !p.eliminate(puzzle, peer, lastRemainingValue) {
+	if len(puzzle[sq]) == 1 {
+		lastRemainingValue := puzzle[sq]
+		for _, peer := range s.peers[sq] {
+			if !s.eliminate(puzzle, peer, lastRemainingValue) {
 				return false
 			}
 		}
@@ -126,7 +127,7 @@ func (p *sudoku) eliminate(puzzle []string, s int, valueToEliminate string) bool
 
 	// (2) After (A), if a unit u has only one spot left to place valueToEliminate, then assign it there.
 CheckUnits:
-	for _, u := range p.units[s] {
+	for _, u := range s.units[sq] {
 		remainingSquareForValueToEliminate := 82
 		numberOfPossibleSquaresForValueToEliminate := 0
 
@@ -146,7 +147,7 @@ CheckUnits:
 		}
 
 		if numberOfPossibleSquaresForValueToEliminate == 1 {
-			if !p.assign(puzzle, remainingSquareForValueToEliminate, valueToEliminate) {
+			if !s.assign(puzzle, remainingSquareForValueToEliminate, valueToEliminate) {
 				return false
 			}
 		}
@@ -154,49 +155,49 @@ CheckUnits:
 	return true
 }
 
-func (p *sudoku) Solve(grid string) ([]string, bool) {
-	puzzle, ok := p.parseGrid(grid)
+func (s *sudoku) Solve(grid string) (puzzle, bool) {
+	p, ok := s.parseGrid(grid)
 	if ok {
-		return p.search(puzzle)
+		return s.search(p)
 	}
-	return puzzle, false
+	return p, false
 }
 
-func (p *sudoku) search(puzzle []string) ([]string, bool) {
+func (s *sudoku) search(p puzzle) (puzzle, bool) {
 	minSquare := 82
 	minSize := 10
 
-	for s := range p.squares {
-		size := len(puzzle[s])
+	for sq := range s.squares {
+		size := len(p[sq])
 		if size > 1 && size < minSize {
-			minSquare = s
+			minSquare = sq
 			minSize = size
 		}
 	}
 
 	if minSquare == 82 {
-		return puzzle, true
+		return p, true
 	}
 
-	for _, d := range strings.Split(puzzle[minSquare], "") {
+	for _, d := range strings.Split(p[minSquare], "") {
 		puzzleCopy := make([]string, 81)
-		copy(puzzleCopy, puzzle)
+		copy(puzzleCopy, p)
 
-		if p.assign(puzzleCopy, minSquare, d) {
-			result, ok := p.search(puzzleCopy)
+		if s.assign(puzzleCopy, minSquare, d) {
+			result, ok := s.search(puzzleCopy)
 			if ok {
 				return result, true
 			}
 		}
 	}
 
-	return puzzle, false
+	return p, false
 }
 
-func unitSolved(puzzle []string, u unit) bool {
+func unitSolved(p puzzle, u unit) bool {
 	set := make(map[string]bool)
-	for _, s := range u {
-		set[puzzle[s]] = true
+	for _, sq := range u {
+		set[p[sq]] = true
 	}
 	for _, d := range strings.Split(digits, "") {
 		if !set[d] {
@@ -206,29 +207,29 @@ func unitSolved(puzzle []string, u unit) bool {
 	return true
 }
 
-func (p *sudoku) Solved(puzzle []string) bool {
-	for _, u := range p.unitlist {
-		if !unitSolved(puzzle, u) {
+func (s *sudoku) Solved(p puzzle ) bool {
+	for _, u := range s.unitlist {
+		if !unitSolved(p, u) {
 			return false
 		}
 	}
 	return true
 }
 
-func (p *sudoku) Random() string {
-	solution := p.blankPuzzle()
+func (s *sudoku) Random() string {
+	solution := s.blankPuzzle()
 	shuffled := make([]string, 81)
 	perm := rand.Perm(81)
 	for i, v := range perm {
-		shuffled[v] = p.squares[i]
+		shuffled[v] = s.squares[i]
 	}
-	for s := range shuffled {
-		elements := strings.Split(solution[s], "")
-		if !p.assign(solution, s, elements[rand.Intn(len(elements))]) {
+	for sq := range shuffled {
+		elements := strings.Split(solution[sq], "")
+		if !s.assign(solution, sq, elements[rand.Intn(len(elements))]) {
 			break
 		}
 		ds := make([]string, 0)
-		for sq := range p.squares {
+		for sq := range s.squares {
 			if len(solution[sq]) == 1 {
 				ds = append(ds, solution[sq])
 			}
@@ -239,7 +240,7 @@ func (p *sudoku) Random() string {
 		}
 		if len(ds) >= N && len(set) >= 8 {
 			out := make([]string, 0)
-			for sq := range p.squares {
+			for sq := range s.squares {
 				if len(solution[sq]) == 1 {
 					out = append(out, solution[sq])
 				} else {
@@ -250,10 +251,10 @@ func (p *sudoku) Random() string {
 			return puzzle
 		}
 	}
-	return p.Random()
+	return s.Random()
 }
 
-func (p *sudoku) blankPuzzle() []string {
+func (p *sudoku) blankPuzzle() puzzle {
 	solution := make([]string, 81)
 	for i := range solution {
 		solution[i] = digits
@@ -340,6 +341,6 @@ func New() *sudoku {
 	return &solver
 }
 
-func (p *sudoku) ShowSolution(s []string) {
-	fmt.Println(strings.Join(s, ""))
+func (s *sudoku) ShowSolution(p puzzle) {
+	fmt.Println(strings.Join(p, ""))
 }
