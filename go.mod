@@ -1,3 +1,3 @@
-module mlbright/sudoku-go
+module github.com/mlbright/sudoku-norvig-go
 
-go 1.13
+go 1.18
