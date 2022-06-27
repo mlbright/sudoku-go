@@ -12,7 +12,7 @@ go build .
 ### Run
 
 ```
-./sudoku-go
+./sudoku-norvig-go
 ```
 
 [Peter Norvig's original essay](http://norvig.com/sudoku.html)
