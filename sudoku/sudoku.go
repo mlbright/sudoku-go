@@ -172,6 +172,9 @@ func (s *sudoku) search(p puzzle) (puzzle, bool) {
 		if size > 1 && size < minSize {
 			minSquare = sq
 			minSize = size
+			if minSize == 2 {
+				break
+			}
 		}
 	}
 
