@@ -6,7 +6,7 @@ Translation of Peter Norvig's constraint propagation and search algorithm implem
 ### Build
 
 ```
-go build .
+go build
 ```
 
 ### Run
