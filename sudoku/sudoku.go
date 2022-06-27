@@ -7,9 +7,9 @@ import (
 )
 
 const (
-	rows       = "ABCDEFGHI"
-	digits     = "123456789"
-	N      int = 17
+	rows   = "ABCDEFGHI"
+	digits = "123456789"
+	N      = 17
 )
 
 type puzzle []string
@@ -93,33 +93,33 @@ func gridValues(grid string) puzzle {
 
 // Constraint Propagation
 
-func (s *sudoku) assign(puzzle []string, sq int, d string) bool {
-	otherValues := strings.Replace(puzzle[sq], d, "", -1)
+func (s *sudoku) assign(p puzzle, sq int, d string) bool {
+	otherValues := strings.Replace(p[sq], d, "", -1)
 	for _, otherValue := range strings.Split(otherValues, "") {
-		if !s.eliminate(puzzle, sq, otherValue) {
+		if !s.eliminate(p, sq, otherValue) {
 			return false
 		}
 	}
 	return true
 }
 
-func (s *sudoku) eliminate(puzzle []string, sq int, valueToEliminate string) bool {
-	if !strings.Contains(puzzle[sq], valueToEliminate) {
+func (s *sudoku) eliminate(p puzzle, sq int, valueToEliminate string) bool {
+	if !strings.Contains(p[sq], valueToEliminate) {
 		return true // Already eliminated
 	}
 
 	// (A)
-	puzzle[sq] = strings.Replace(puzzle[sq], valueToEliminate, "", -1)
+	p[sq] = strings.Replace(p[sq], valueToEliminate, "", -1)
 
-	if len(puzzle[sq]) == 0 {
+	if len(p[sq]) == 0 {
 		return false // Contradiction, removed last value
 	}
 
 	// (1) If a square s is reduced to one value, then eliminate it from the peers.
-	if len(puzzle[sq]) == 1 {
-		lastRemainingValue := puzzle[sq]
+	if len(p[sq]) == 1 {
+		lastRemainingValue := p[sq]
 		for _, peer := range s.peers[sq] {
-			if !s.eliminate(puzzle, peer, lastRemainingValue) {
+			if !s.eliminate(p, peer, lastRemainingValue) {
 				return false
 			}
 		}
@@ -132,7 +132,7 @@ CheckUnits:
 		numberOfPossibleSquaresForValueToEliminate := 0
 
 		for _, sq := range u {
-			if strings.Contains(puzzle[sq], valueToEliminate) {
+			if strings.Contains(p[sq], valueToEliminate) {
 				remainingSquareForValueToEliminate = sq
 				numberOfPossibleSquaresForValueToEliminate++
 			}
@@ -147,7 +147,7 @@ CheckUnits:
 		}
 
 		if numberOfPossibleSquaresForValueToEliminate == 1 {
-			if !s.assign(puzzle, remainingSquareForValueToEliminate, valueToEliminate) {
+			if !s.assign(p, remainingSquareForValueToEliminate, valueToEliminate) {
 				return false
 			}
 		}
@@ -207,7 +207,7 @@ func unitSolved(p puzzle, u unit) bool {
 	return true
 }
 
-func (s *sudoku) Solved(p puzzle ) bool {
+func (s *sudoku) Solved(p puzzle) bool {
 	for _, u := range s.unitlist {
 		if !unitSolved(p, u) {
 			return false
