@@ -2,24 +2,74 @@ package sudoku
 
 import (
 	"fmt"
-	"math/rand"
+	"strconv"
 	"strings"
+
+	"github.com/dropbox/godropbox/container/bitvector"
 )
 
 const (
 	rows   = "ABCDEFGHI"
 	digits = "123456789"
-	N      = 17
 )
 
-type puzzle []string
+type puzzle []bitvector.BitVector
+
+func newPuzzleElement() *bitvector.BitVector {
+	byte1 := byte(0b11111111)
+	byte2 := byte(0b11111111)
+	return bitvector.NewBitVector([]byte{byte1, byte2}, 9)
+}
+
+func (p puzzle) lengthAndRemainingValue(i int) (int, int) {
+	n := 0
+	lastValueSet := 10
+	for j := 0; j <= 8; j++ {
+		if p.isSet(i, j) {
+			n++
+			lastValueSet = j
+		}
+	}
+	return n, lastValueSet
+}
+
+func (p puzzle) length(i int) int {
+	n := 0
+	for j := 0; j <= 8; j++ {
+		if p.isSet(i, j) {
+			n++
+		}
+	}
+	return n
+}
+
+func (p puzzle) isSet(i, j int) bool {
+	return p[i].Element(j) == 1
+}
+
+func (p puzzle) unset(i, j int) {
+	p[i].Set(0, j)
+}
+
+func (p puzzle) Duplicate() puzzle {
+	tmp := make([]bitvector.BitVector, 81)
+	for i := 0; i < 81; i++ {
+		// for j := 0; j < p[i].Length(); j++ {
+		// 	tmp[i].Append(p[i].Element(j))
+		// }
+		backing := make([]byte, 2)
+		copy(backing, p[i].Bytes())
+		tmp[i] = *bitvector.NewBitVector(backing, p[i].Length())
+	}
+	return tmp
+}
+
 type iunit []string
 type unit []int
 type unitgroup []unit
 type peerlist []int
 
 type sudoku struct {
-	squares  []string
 	unitlist []unit
 	units    []unitgroup
 	peers    []peerlist
@@ -38,37 +88,16 @@ func cross(x string, y string) []string {
 	return result
 }
 
-func (s *sudoku) Test() {
-
-	if len(s.squares) != 81 {
-		panic("the number of squares is not 81")
-	}
-
-	if len(s.unitlist) != 27 {
-		panic("the number of units is not 27")
-	}
-
-	for sq := range s.squares {
-		if len(s.units[sq]) != 3 {
-			panic("bad unit")
-		}
-	}
-
-	for sq := range s.squares {
-		if len(s.peers[sq]) != 20 {
-			panic("bad peer list")
-		}
-	}
-
-	fmt.Println("All tests pass.")
-}
-
 func (s *sudoku) parseGrid(grid string) (puzzle, bool) {
 	// To start, every square can be any digit; then assign values from the grid.
-	solution := s.blankPuzzle()
+	solution := s.BlankPuzzle()
 	for sq, d := range gridValues(grid) {
 		if strings.Contains(digits, d) {
-			if !s.assign(solution, sq, d) {
+			n, err := strconv.Atoi(d)
+			if err != nil {
+				panic(err)
+			}
+			if !s.assign(solution, sq, n-1) {
 				return solution, false
 			}
 		}
@@ -76,50 +105,50 @@ func (s *sudoku) parseGrid(grid string) (puzzle, bool) {
 	return solution, true
 }
 
-func gridValues(grid string) puzzle {
-	puzzle := make([]string, 81)
+func gridValues(grid string) []string {
+	p := make([]string, 81)
 	i := 0
 	for _, c := range strings.Split(grid, "") {
-		if strings.Contains(digits, c) || strings.Contains("0.", c) {
-			puzzle[i] = c
+		if strings.Contains(digits, c) || strings.Contains(".", c) {
+			p[i] = c
 			i++
 		}
 	}
-	if len(puzzle) != 81 {
+	if len(p) != 81 {
 		panic("invalid puzzle")
 	}
-	return puzzle
+	return p
 }
 
 // Constraint Propagation
 
-func (s *sudoku) assign(p puzzle, sq int, d string) bool {
-	otherValues := strings.Replace(p[sq], d, "", -1)
-	for _, otherValue := range strings.Split(otherValues, "") {
-		if !s.eliminate(p, sq, otherValue) {
-			return false
+func (s *sudoku) assign(p puzzle, sq int, valueToAssign int) bool {
+	for j := 0; j <= 8; j++ {
+		if p.isSet(sq, j) && j != valueToAssign {
+			if !s.eliminate(p, sq, j) {
+				return false
+			}
 		}
 	}
 	return true
 }
 
-func (s *sudoku) eliminate(p puzzle, sq int, valueToEliminate string) bool {
-	if !strings.Contains(p[sq], valueToEliminate) {
-		return true // Already eliminated
+func (s *sudoku) eliminate(p puzzle, sq int, valueToEliminate int) bool {
+	if !p.isSet(sq, valueToEliminate) {
+		return true // already eliminated
 	}
 
 	// (A)
-	p[sq] = strings.Replace(p[sq], valueToEliminate, "", -1)
+	p.unset(sq, valueToEliminate)
 
-	if len(p[sq]) == 0 {
-		return false // Contradiction, removed last value
-	}
+	numberOfRemainingValues, remainingValue := p.lengthAndRemainingValue(sq)
 
-	// (1) If a square s is reduced to one value, then eliminate it from the peers.
-	if len(p[sq]) == 1 {
-		lastRemainingValue := p[sq]
+	if numberOfRemainingValues == 0 {
+		return false // Contradiction: removed last value
+	} else if numberOfRemainingValues == 1 {
+		// (1) If the square sq is reduced to one value, then eliminate the value from its peers.
 		for _, peer := range s.peers[sq] {
-			if !s.eliminate(p, peer, lastRemainingValue) {
+			if !s.eliminate(p, peer, remainingValue) {
 				return false
 			}
 		}
@@ -132,7 +161,7 @@ CheckUnits:
 		numberOfPossibleSquaresForValueToEliminate := 0
 
 		for _, sq := range u {
-			if strings.Contains(p[sq], valueToEliminate) {
+			if p.isSet(sq, valueToEliminate) {
 				remainingSquareForValueToEliminate = sq
 				numberOfPossibleSquaresForValueToEliminate++
 			}
@@ -144,14 +173,13 @@ CheckUnits:
 
 		if numberOfPossibleSquaresForValueToEliminate == 0 {
 			return false // Contradiction: no valid square for valueToEliminate
-		}
-
-		if numberOfPossibleSquaresForValueToEliminate == 1 {
+		} else if numberOfPossibleSquaresForValueToEliminate == 1 {
 			if !s.assign(p, remainingSquareForValueToEliminate, valueToEliminate) {
 				return false
 			}
 		}
 	}
+
 	return true
 }
 
@@ -164,32 +192,36 @@ func (s *sudoku) Solve(grid string) (puzzle, bool) {
 }
 
 func (s *sudoku) search(p puzzle) (puzzle, bool) {
-	minSquare := 82
-	minSize := 10
+	squareWithFewestPossibilities := 82
+	minSize := 100
+	solvedSquares := 0
 
-	for sq := range s.squares {
-		size := len(p[sq])
-		if size > 1 && size < minSize {
-			minSquare = sq
-			minSize = size
+	for sq := 0; sq < 81; sq++ {
+		l := p.length(sq)
+
+		if l == 1 {
+			solvedSquares += 1
+		} else if l < minSize {
+			minSize = l
+			squareWithFewestPossibilities = sq
 			if minSize == 2 {
 				break
 			}
 		}
 	}
 
-	if minSquare == 82 {
-		return p, true
+	if solvedSquares == 81 {
+		return p, true // solved
 	}
 
-	for _, d := range strings.Split(p[minSquare], "") {
-		puzzleCopy := make([]string, 81)
-		copy(puzzleCopy, p)
-
-		if s.assign(puzzleCopy, minSquare, d) {
-			result, ok := s.search(puzzleCopy)
-			if ok {
-				return result, true
+	for j := 0; j <= 8; j++ {
+		if p.isSet(squareWithFewestPossibilities, j) {
+			copied := p.Duplicate()
+			if s.assign(copied, squareWithFewestPossibilities, j) {
+				solution, ok := s.search(copied)
+				if ok {
+					return solution, true
+				}
 			}
 		}
 	}
@@ -198,11 +230,18 @@ func (s *sudoku) search(p puzzle) (puzzle, bool) {
 }
 
 func unitSolved(p puzzle, u unit) bool {
-	set := make(map[string]bool)
+	set := make(map[int]bool)
 	for _, sq := range u {
-		set[p[sq]] = true
+		value := 0
+		for j := 0; j <= 8; j++ {
+			if p.isSet(sq, j) {
+				value = j
+				break
+			}
+		}
+		set[value] = true
 	}
-	for _, d := range strings.Split(digits, "") {
+	for d := 0; d <= 8; d++ {
 		if !set[d] {
 			return false
 		}
@@ -219,55 +258,16 @@ func (s *sudoku) Solved(p puzzle) bool {
 	return true
 }
 
-func (s *sudoku) Random() string {
-	solution := s.blankPuzzle()
-	shuffled := make([]string, 81)
-	perm := rand.Perm(81)
-	for i, v := range perm {
-		shuffled[v] = s.squares[i]
+func (p *sudoku) BlankPuzzle() puzzle {
+	puzzle := make([]bitvector.BitVector, 81)
+	for i := range puzzle {
+		puzzle[i] = *newPuzzleElement()
 	}
-	for sq := range shuffled {
-		elements := strings.Split(solution[sq], "")
-		if !s.assign(solution, sq, elements[rand.Intn(len(elements))]) {
-			break
-		}
-		ds := make([]string, 0)
-		for sq := range s.squares {
-			if len(solution[sq]) == 1 {
-				ds = append(ds, solution[sq])
-			}
-		}
-		set := make(map[string]bool)
-		for _, sq := range ds {
-			set[sq] = true
-		}
-		if len(ds) >= N && len(set) >= 8 {
-			out := make([]string, 0)
-			for sq := range s.squares {
-				if len(solution[sq]) == 1 {
-					out = append(out, solution[sq])
-				} else {
-					out = append(out, ".")
-				}
-			}
-			puzzle := strings.Join(out, "")
-			return puzzle
-		}
-	}
-	return s.Random()
-}
-
-func (p *sudoku) blankPuzzle() puzzle {
-	solution := make([]string, 81)
-	for i := range solution {
-		solution[i] = digits
-	}
-	return solution
+	return puzzle
 }
 
 func New() *sudoku {
 	solver := sudoku{}
-	solver.blankPuzzle()
 
 	cols := digits
 	squares := cross(rows, cols)
@@ -338,12 +338,26 @@ func New() *sudoku {
 	}
 
 	solver.peers = peers
-	solver.squares = squares
 	solver.units = units
 	solver.unitlist = unitlist
 	return &solver
 }
 
 func (s *sudoku) ShowSolution(p puzzle) {
-	fmt.Println(strings.Join(p, ""))
+	var b strings.Builder
+	for i := range p {
+		l := p.length(i)
+		if l != 1 {
+			b.WriteString("[")
+		}
+		for j := 0; j <= 8; j++ {
+			if p.isSet(i, j) {
+				b.WriteString(strconv.Itoa(j + 1))
+			}
+		}
+		if l != 1 {
+			b.WriteString("]")
+		}
+	}
+	fmt.Println(b.String())
 }
