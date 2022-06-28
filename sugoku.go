@@ -80,13 +80,6 @@ func solveAll(grids []string, name string) {
 }
 
 func main() {
-	puzzle := sudoku.New()
-	puzzle.Test()
-	randomPuzzles := make([]string, 99)
-	for j := 0; j < 99; j++ {
-		randomPuzzles[j] = puzzle.Random()
-	}
-	solveAll(randomPuzzles, "random")
 	solveAll(fromFile("puzzles/easy50.txt"), "easy")
 	solveAll(fromFile("puzzles/top95.txt"), "hard")
 	solveAll(fromFile("puzzles/hardest.txt"), "hardest")
