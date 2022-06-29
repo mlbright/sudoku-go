@@ -16,9 +16,7 @@ const (
 type puzzle []bitvector.BitVector
 
 func newPuzzleElement() *bitvector.BitVector {
-	byte1 := byte(0b11111111)
-	byte2 := byte(0b11111111)
-	return bitvector.NewBitVector([]byte{byte1, byte2}, 9)
+	return bitvector.NewBitVector([]byte{byte(0b11111111), byte(0b11111111)}, 9)
 }
 
 func (p puzzle) lengthAndRemainingValue(i int) (int, int) {
@@ -193,15 +191,12 @@ func (s *sudoku) Solve(grid string) (puzzle, bool) {
 
 func (s *sudoku) search(p puzzle) (puzzle, bool) {
 	squareWithFewestPossibilities := 82
-	minSize := 100
-	solvedSquares := 0
+	minSize := 10
 
 	for sq := 0; sq < 81; sq++ {
 		l := p.length(sq)
 
-		if l == 1 {
-			solvedSquares += 1
-		} else if l < minSize {
+		if l > 1 && l < minSize {
 			minSize = l
 			squareWithFewestPossibilities = sq
 			if minSize == 2 {
@@ -210,7 +205,7 @@ func (s *sudoku) search(p puzzle) (puzzle, bool) {
 		}
 	}
 
-	if solvedSquares == 81 {
+	if squareWithFewestPossibilities == 82 {
 		return p, true // solved
 	}
 
