@@ -14,11 +14,11 @@ const (
 type puzzle []Cell
 
 func (p puzzle) Duplicate() puzzle {
-	tmp := make([]Cell, 81)
+	duplicate := make([]Cell, 81)
 	for i := 0; i < 81; i++ {
-		tmp[i] = *p[i].Duplicate()
+		duplicate[i] = *p[i].Duplicate()
 	}
-	return tmp
+	return duplicate
 }
 
 type iunit []string
@@ -105,10 +105,11 @@ func (s *sudoku) eliminate(p puzzle, sq int, valueToEliminate int) bool {
 	} else if numberOfRemainingValues == 1 {
 		// (1) If the square sq is reduced to one value, then eliminate the value from its peers.
 
-		remainingValue := 10
+		remainingValue := -1
 		for r := 0; r <= 8; r++ {
 			if p[sq].IsSet(r) {
 				remainingValue = r
+				break
 			}
 		}
 
@@ -158,7 +159,7 @@ func (s *sudoku) Solve(grid string) (puzzle, bool) {
 
 func (s *sudoku) search(p puzzle) (puzzle, bool) {
 	squareWithFewestPossibilities := 82
-	minSize := 10
+	var minSize uint = 10
 
 	for sq := 0; sq < 81; sq++ {
 		l := p[sq].Length()
