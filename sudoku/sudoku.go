@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-
-	"github.com/dropbox/godropbox/container/bitvector"
 )
 
 const (
@@ -13,51 +11,12 @@ const (
 	digits = "123456789"
 )
 
-type puzzle []bitvector.BitVector
-
-func newPuzzleElement() *bitvector.BitVector {
-	return bitvector.NewBitVector([]byte{byte(0b11111111), byte(0b11111111)}, 9)
-}
-
-func (p puzzle) lengthAndRemainingValue(i int) (int, int) {
-	n := 0
-	lastValueSet := 10
-	for j := 0; j <= 8; j++ {
-		if p.isSet(i, j) {
-			n++
-			lastValueSet = j
-		}
-	}
-	return n, lastValueSet
-}
-
-func (p puzzle) length(i int) int {
-	n := 0
-	for j := 0; j <= 8; j++ {
-		if p.isSet(i, j) {
-			n++
-		}
-	}
-	return n
-}
-
-func (p puzzle) isSet(i, j int) bool {
-	return p[i].Element(j) == 1
-}
-
-func (p puzzle) unset(i, j int) {
-	p[i].Set(0, j)
-}
+type puzzle []Cell
 
 func (p puzzle) Duplicate() puzzle {
-	tmp := make([]bitvector.BitVector, 81)
+	tmp := make([]Cell, 81)
 	for i := 0; i < 81; i++ {
-		// for j := 0; j < p[i].Length(); j++ {
-		// 	tmp[i].Append(p[i].Element(j))
-		// }
-		backing := make([]byte, 2)
-		copy(backing, p[i].Bytes())
-		tmp[i] = *bitvector.NewBitVector(backing, p[i].Length())
+		tmp[i] = *p[i].Duplicate()
 	}
 	return tmp
 }
@@ -122,7 +81,7 @@ func gridValues(grid string) []string {
 
 func (s *sudoku) assign(p puzzle, sq int, valueToAssign int) bool {
 	for j := 0; j <= 8; j++ {
-		if p.isSet(sq, j) && j != valueToAssign {
+		if p[sq].IsSet(j) && j != valueToAssign {
 			if !s.eliminate(p, sq, j) {
 				return false
 			}
@@ -132,19 +91,27 @@ func (s *sudoku) assign(p puzzle, sq int, valueToAssign int) bool {
 }
 
 func (s *sudoku) eliminate(p puzzle, sq int, valueToEliminate int) bool {
-	if !p.isSet(sq, valueToEliminate) {
+	if !p[sq].IsSet(valueToEliminate) {
 		return true // already eliminated
 	}
 
 	// (A)
-	p.unset(sq, valueToEliminate)
+	p[sq].Unset(valueToEliminate)
 
-	numberOfRemainingValues, remainingValue := p.lengthAndRemainingValue(sq)
+	numberOfRemainingValues := p[sq].Length()
 
 	if numberOfRemainingValues == 0 {
 		return false // Contradiction: removed last value
 	} else if numberOfRemainingValues == 1 {
 		// (1) If the square sq is reduced to one value, then eliminate the value from its peers.
+
+		remainingValue := 10
+		for r := 0; r <= 8; r++ {
+			if p[sq].IsSet(r) {
+				remainingValue = r
+			}
+		}
+
 		for _, peer := range s.peers[sq] {
 			if !s.eliminate(p, peer, remainingValue) {
 				return false
@@ -159,7 +126,7 @@ CheckUnits:
 		numberOfPossibleSquaresForValueToEliminate := 0
 
 		for _, sq := range u {
-			if p.isSet(sq, valueToEliminate) {
+			if p[sq].IsSet(valueToEliminate) {
 				remainingSquareForValueToEliminate = sq
 				numberOfPossibleSquaresForValueToEliminate++
 			}
@@ -194,7 +161,7 @@ func (s *sudoku) search(p puzzle) (puzzle, bool) {
 	minSize := 10
 
 	for sq := 0; sq < 81; sq++ {
-		l := p.length(sq)
+		l := p[sq].Length()
 
 		if l > 1 && l < minSize {
 			minSize = l
@@ -210,7 +177,7 @@ func (s *sudoku) search(p puzzle) (puzzle, bool) {
 	}
 
 	for j := 0; j <= 8; j++ {
-		if p.isSet(squareWithFewestPossibilities, j) {
+		if p[squareWithFewestPossibilities].IsSet(j) {
 			copied := p.Duplicate()
 			if s.assign(copied, squareWithFewestPossibilities, j) {
 				solution, ok := s.search(copied)
@@ -229,7 +196,7 @@ func unitSolved(p puzzle, u unit) bool {
 	for _, sq := range u {
 		value := 0
 		for j := 0; j <= 8; j++ {
-			if p.isSet(sq, j) {
+			if p[sq].IsSet(j) {
 				value = j
 				break
 			}
@@ -254,9 +221,9 @@ func (s *sudoku) Solved(p puzzle) bool {
 }
 
 func (p *sudoku) BlankPuzzle() puzzle {
-	puzzle := make([]bitvector.BitVector, 81)
+	puzzle := make([]Cell, 81)
 	for i := range puzzle {
-		puzzle[i] = *newPuzzleElement()
+		puzzle[i] = *NewCell()
 	}
 	return puzzle
 }
@@ -341,12 +308,12 @@ func New() *sudoku {
 func (s *sudoku) ShowSolution(p puzzle) {
 	var b strings.Builder
 	for i := range p {
-		l := p.length(i)
+		l := p[i].Length()
 		if l != 1 {
 			b.WriteString("[")
 		}
 		for j := 0; j <= 8; j++ {
-			if p.isSet(i, j) {
+			if p[i].IsSet(j) {
 				b.WriteString(strconv.Itoa(j + 1))
 			}
 		}
