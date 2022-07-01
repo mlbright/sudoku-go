@@ -2,6 +2,8 @@ package sudoku
 
 type puzzle []Cell
 
+var blank puzzle
+
 func (p *puzzle) Duplicate() puzzle {
 	duplicate := make([]Cell, 81)
 	for i := 0; i < 81; i++ {
@@ -11,11 +13,14 @@ func (p *puzzle) Duplicate() puzzle {
 }
 
 func BlankPuzzle() puzzle {
-	p := make([]Cell, 81)
-	for i := range p {
-		p[i] = *NewCell()
+	if blank == nil {
+		p := make([]Cell, 81)
+		for i := range p {
+			p[i] = *NewCell()
+		}
+		blank = puzzle(p)
 	}
-	return p
+	return blank.Duplicate()
 }
 
 func (p *puzzle) IsSet(i, j int) bool {
