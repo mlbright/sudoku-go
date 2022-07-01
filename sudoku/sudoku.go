@@ -290,7 +290,7 @@ func New() *sudoku {
 
 func (s *sudoku) ShowSolution(p puzzle) {
 	var b strings.Builder
-	for i := range p {
+	for i := 0; i < 81; i++ {
 		l := p.Length(i)
 		if l != 1 {
 			b.WriteString("[")
