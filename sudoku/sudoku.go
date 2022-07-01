@@ -11,16 +11,6 @@ const (
 	digits = "123456789"
 )
 
-type puzzle []Cell
-
-func (p puzzle) Duplicate() puzzle {
-	duplicate := make([]Cell, 81)
-	for i := 0; i < 81; i++ {
-		duplicate[i] = *p[i].Duplicate()
-	}
-	return duplicate
-}
-
 type iunit []string
 type unit []int
 type unitgroup []unit
@@ -47,7 +37,7 @@ func cross(x string, y string) []string {
 
 func (s *sudoku) parseGrid(grid string) (puzzle, bool) {
 	// To start, every square can be any digit; then assign values from the grid.
-	solution := s.BlankPuzzle()
+	solution := BlankPuzzle()
 	for sq, d := range gridValues(grid) {
 		if strings.Contains(digits, d) {
 			n, err := strconv.Atoi(d)
@@ -81,7 +71,7 @@ func gridValues(grid string) []string {
 
 func (s *sudoku) assign(p puzzle, sq int, valueToAssign int) bool {
 	for j := 0; j <= 8; j++ {
-		if p[sq].IsSet(j) && j != valueToAssign {
+		if p.IsSet(sq, j) && j != valueToAssign {
 			if !s.eliminate(p, sq, j) {
 				return false
 			}
@@ -91,14 +81,14 @@ func (s *sudoku) assign(p puzzle, sq int, valueToAssign int) bool {
 }
 
 func (s *sudoku) eliminate(p puzzle, sq int, valueToEliminate int) bool {
-	if !p[sq].IsSet(valueToEliminate) {
+	if !p.IsSet(sq, valueToEliminate) {
 		return true // already eliminated
 	}
 
 	// (A)
-	p[sq].Unset(valueToEliminate)
+	p.Unset(sq, valueToEliminate)
 
-	numberOfRemainingValues := p[sq].Length()
+	numberOfRemainingValues := p.Length(sq)
 
 	if numberOfRemainingValues == 0 {
 		return false // Contradiction: removed last value
@@ -107,7 +97,7 @@ func (s *sudoku) eliminate(p puzzle, sq int, valueToEliminate int) bool {
 
 		remainingValue := -1
 		for r := 0; r <= 8; r++ {
-			if p[sq].IsSet(r) {
+			if p.IsSet(sq, r) {
 				remainingValue = r
 				break
 			}
@@ -127,7 +117,7 @@ CheckUnits:
 		numberOfPossibleSquaresForValueToEliminate := 0
 
 		for _, sq := range u {
-			if p[sq].IsSet(valueToEliminate) {
+			if p.IsSet(sq, valueToEliminate) {
 				remainingSquareForValueToEliminate = sq
 				numberOfPossibleSquaresForValueToEliminate++
 			}
@@ -162,7 +152,7 @@ func (s *sudoku) search(p puzzle) (puzzle, bool) {
 	var minSize uint = 10
 
 	for sq := 0; sq < 81; sq++ {
-		l := p[sq].Length()
+		l := p.Length(sq)
 
 		if l > 1 && l < minSize {
 			minSize = l
@@ -178,7 +168,7 @@ func (s *sudoku) search(p puzzle) (puzzle, bool) {
 	}
 
 	for j := 0; j <= 8; j++ {
-		if p[squareWithFewestPossibilities].IsSet(j) {
+		if p.IsSet(squareWithFewestPossibilities, j) {
 			copied := p.Duplicate()
 			if s.assign(copied, squareWithFewestPossibilities, j) {
 				solution, ok := s.search(copied)
@@ -197,7 +187,7 @@ func unitSolved(p puzzle, u unit) bool {
 	for _, sq := range u {
 		value := 0
 		for j := 0; j <= 8; j++ {
-			if p[sq].IsSet(j) {
+			if p.IsSet(sq, j) {
 				value = j
 				break
 			}
@@ -219,14 +209,6 @@ func (s *sudoku) Solved(p puzzle) bool {
 		}
 	}
 	return true
-}
-
-func (p *sudoku) BlankPuzzle() puzzle {
-	puzzle := make([]Cell, 81)
-	for i := range puzzle {
-		puzzle[i] = *NewCell()
-	}
-	return puzzle
 }
 
 func New() *sudoku {
@@ -309,12 +291,12 @@ func New() *sudoku {
 func (s *sudoku) ShowSolution(p puzzle) {
 	var b strings.Builder
 	for i := range p {
-		l := p[i].Length()
+		l := p.Length(i)
 		if l != 1 {
 			b.WriteString("[")
 		}
 		for j := 0; j <= 8; j++ {
-			if p[i].IsSet(j) {
+			if p.IsSet(i, j) {
 				b.WriteString(strconv.Itoa(j + 1))
 			}
 		}
