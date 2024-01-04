@@ -87,4 +87,5 @@ func main() {
 	solveAll(fromFile("puzzles/hardest20.txt"), "hardest20")
 	solveAll(fromFile("puzzles/hardest20x50.txt"), "hardest20x50")
 	solveAll(fromFile("puzzles/topn87.txt"), "topn87")
+	solveAll(fromFile("puzzles/all.txt"), "all")
 }
